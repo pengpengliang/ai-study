@@ -1,26 +1,17 @@
 <script setup>
-import { ChatOpenAI} from "@langchain/openai";
-import { onMounted } from 'vue';
-
-const model = new ChatOpenAI({
-  model: "gpt-4.1",
-  configuration: {
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    apiKey: "sk-a51637d1003e4f34b02ffb4def151e95",
-  },
-});
-
-// 使用onMounted钩子执行异步操作
-onMounted(async () => {
-  // Basic usage
-  const response = await model.invoke(
-    "What was a positive news story from today?"
-  );
-  console.log(response)
-});
+// App.vue 现在只作为路由容器
 </script>
 
 <template>
-  <div>123</div>
+  <div class="app-container">
+    <router-view></router-view>
+  </div>
 </template>
 
+<style scoped>
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+}
+</style>
