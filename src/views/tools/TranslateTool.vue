@@ -10,7 +10,7 @@ const model = new ChatOpenAI({
   configuration: {
     baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
   },
-  apiKey: "sk-a51637d1003e4f34b02ffb4def151e95",
+  apiKey: import.meta.env.VITE_API_KEY,
 });
 
 // 响应式数据
