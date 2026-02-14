@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { ChatOpenAI} from "@langchain/openai";
 import { SystemMessagePromptTemplate, ChatPromptTemplate } from "@langchain/core/prompts";
