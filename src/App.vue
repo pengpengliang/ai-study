@@ -10,8 +10,6 @@
 
 <style scoped>
 .app-container {
-  width: 100%;
-  min-height: 100vh;
-  font-family: Arial, sans-serif;
+  height: 100vh;
 }
 </style>

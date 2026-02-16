@@ -10,7 +10,12 @@ const routes: Array<RouteRecordRaw> = [
     path: '/tools/translateTool',
     name: 'TranslateTool',
     component: () => import('../views/tools/TranslateTool.vue')
-  }
+  },
+  {
+    path: '/tools/chatRobot',
+    name: 'ChatRobot',
+    component: () => import('../views/tools/ChatRobot.vue')
+  },
 ];
 
 const router = createRouter({
