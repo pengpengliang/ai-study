@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref,type Ref  } from 'vue';
+import { ref,type Ref, defineProps, watch } from 'vue';
 import {Sender, BubbleList} from 'vue-element-plus-x'
 import { ChatOpenAI} from "@langchain/openai";
 import { MessagesPlaceholder, ChatPromptTemplate } from "@langchain/core/prompts"
 import { RunnableWithMessageHistory } from "@langchain/core/runnables"
 import { InMemoryChatMessageHistory } from "@langchain/core/chat_history"
-import { ChatMessageHistory } from "@langchain/community/stores/message/in_memory";
+// import { ChatMessageHistory } from "@langchain/community/stores/message/in_memory";
 // import { setVerbose, getVerbose } from "@langchain/core/globals";
 // setVerbose(true)
 import type {
@@ -17,6 +17,18 @@ type listType = BubbleListItemProps & {
   role: 'user' | 'ai';
 };
 
+const props = defineProps<{
+  sessionId: string;
+  addConversation: (data: { sessionId: string; content: string }) => void;
+}>();
+
+// watch(() => props.sessionId, (newSessionId:string) => {
+//   // 当sessionId变化时，清空当前会话的历史记录
+//   if (store.has(newSessionId)) {
+//     store.delete(newSessionId);
+//   }
+// });
+
 // 示例调用
 const list: Ref<BubbleListProps<listType>['list']> = ref([]);
 const senderValue = ref('');
@@ -25,12 +37,11 @@ const store = new Map();
 
 async function getMessageHistory(sessionId: string) {
   if (store.has(sessionId)) {
-    console.log(`✅ 复用已有会话: ${sessionId}`);
     return store.get(sessionId);
   }
-  console.log(`🆕 创建新会话: ${sessionId}`);
-  const newHistory = new ChatMessageHistory();
+  const newHistory = new InMemoryChatMessageHistory();
   store.set(sessionId, newHistory);
+
   return newHistory;
 }
 const model = new ChatOpenAI({
@@ -89,6 +100,9 @@ function createMessage(
 }
 
 async function chat(sessionId: string, message: string) {
+  // 检查当前sessionId是否是新建的
+  const isNewSession = !store.has(sessionId);
+
   const config = { configurable: { sessionId } }; // 配置会话ID
   const historyBefore = await withMessageHistory.getMessageHistory(sessionId);
   console.log(`[${sessionId}] 调用前的消息数:`, historyBefore);
@@ -97,6 +111,12 @@ async function chat(sessionId: string, message: string) {
   console.log(`[${sessionId}] 调用后的消息数:`, historyAfter);
   console.log("当前完整记忆:", historyAfter);
   console.log("AI:", response.content);
+
+  // 如果是新建的会话，调用addConversation方法
+  if (isNewSession) {
+    props.addConversation({ sessionId, content: message });
+  }
+
   return response;
 }
 
@@ -107,18 +127,17 @@ async function handleSubmit(value: string) {
 
     // 添加用户消息
     list.value.push(createMessage('user', value));
+    senderValue.value = '';
 
     // 调用模型
-    const response = await chat('123', value);
+    const response = await chat(props.sessionId, value);
     console.log(response)
-
     // 添加 AI 回复
     list.value.push(createMessage('ai', response.content as string));
   } catch (error) {
     console.error('模型调用失败:', error);
     list.value.push(createMessage('ai', '抱歉，服务暂时不可用，请稍后再试。'));
   } finally {
-    senderValue.value = '';
     senderLoading.value = false;
   }
 }
@@ -132,7 +151,7 @@ async function handleSubmit(value: string) {
         btn-loading
         />
     </div>
-    <div style="height: 90px;">
+    <div style="height: 90px; padding: 0 24px;">
         <Sender v-model="senderValue" :loading="senderLoading" variant="updown" clearable @submit="handleSubmit"/>
     </div>
 
