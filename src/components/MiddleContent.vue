@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref,type Ref, defineProps, watch } from 'vue';
+import { defineExpose, ref,type Ref, watch } from 'vue';
 import {Sender, BubbleList} from 'vue-element-plus-x'
 import { ChatOpenAI} from "@langchain/openai";
 import { MessagesPlaceholder, ChatPromptTemplate } from "@langchain/core/prompts"
@@ -12,25 +12,26 @@ import type {
   BubbleListItemProps,
   BubbleListProps
 } from 'vue-element-plus-x/types/BubbleList';
+import { useConversationStore } from '@/stores/conversation';
 type listType = BubbleListItemProps & {
   key: number;
   role: 'user' | 'ai';
 };
 
-const props = defineProps<{
-  sessionId: string;
-  addConversation: (data: { sessionId: string; content: string }) => void;
-}>();
+const conversationStore = useConversationStore();
 
-// watch(() => props.sessionId, (newSessionId:string) => {
-//   // 当sessionId变化时，清空当前会话的历史记录
-//   if (store.has(newSessionId)) {
-//     store.delete(newSessionId);
-//   }
-// });
+// 当会话ID变化时，清空当前会话的历史记录
+watch(() => conversationStore.currentSessionId, async (newSessionId:string, oldSessionId:string) => {
+  if (oldSessionId && !conversationStore.isNewSession) {
+    console.log('watch')
+    const historyMsg = await getMessageHistoryBySessionId(newSessionId);
+    chatList.value = handleHistoryMessageToList(historyMsg);
+  }
+
+});
 
 // 示例调用
-const list: Ref<BubbleListProps<listType>['list']> = ref([]);
+const chatList: Ref<BubbleListProps<listType>['list']> = ref([]);
 const senderValue = ref('');
 const senderLoading = ref(false);
 const store = new Map();
@@ -45,7 +46,7 @@ async function getMessageHistory(sessionId: string) {
   return newHistory;
 }
 const model = new ChatOpenAI({
-  model: "qwen-max-latest",
+  model: "qwen-flash",
   configuration: {
     baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
   },
@@ -99,22 +100,30 @@ function createMessage(
   };
 }
 
-async function chat(sessionId: string, message: string) {
-  // 检查当前sessionId是否是新建的
-  const isNewSession = !store.has(sessionId);
+function isNewSession(sessionId: string) {
+  return !store.has(sessionId) && conversationStore.isNewSession;
+}
 
-  const config = { configurable: { sessionId } }; // 配置会话ID
-  const historyBefore = await withMessageHistory.getMessageHistory(sessionId);
-  console.log(`[${sessionId}] 调用前的消息数:`, historyBefore);
-  const response = await withMessageHistory.invoke({input: message}, config);
+async function getMessageHistoryBySessionId(sessionId: string) {
   const historyAfter = await withMessageHistory.getMessageHistory(sessionId);
-  console.log(`[${sessionId}] 调用后的消息数:`, historyAfter);
-  console.log("当前完整记忆:", historyAfter);
-  console.log("AI:", response.content);
+  return historyAfter;
+}
 
+function handleHistoryMessageToList(historyMsg: { messages: any[]; }) {
+  const list = historyMsg.messages.map((item) => {
+    return createMessage(item.type === 'human' ? 'user' : 'ai', item.content, false, false);
+  });
+  return list;
+}
+
+async function chat(sessionId: string, message: string) {
+  const isNew = isNewSession(sessionId);
+  const config = { configurable: { sessionId } }; // 配置会话ID
+  const response = await withMessageHistory.invoke({input: message}, config);
   // 如果是新建的会话，调用addConversation方法
-  if (isNewSession) {
-    props.addConversation({ sessionId, content: message });
+  if (isNew) {
+    // 检查当前sessionId是否是新建的
+    conversationStore.addConversation(message);
   }
 
   return response;
@@ -124,29 +133,43 @@ async function handleSubmit(value: string) {
   if (!value.trim()) return; // 空值保护
   senderLoading.value = true;
   try {
-
     // 添加用户消息
-    list.value.push(createMessage('user', value));
+    chatList.value.push(createMessage('user', value));
+    console.log(chatList.value)
     senderValue.value = '';
+    if (!conversationStore.currentSessionId || conversationStore.isNewSession) {
+      conversationStore.changeIsNewSession(true)
+      conversationStore.createSessionId()
+    } else {
+      conversationStore.changeIsNewSession(false)
+    }
 
     // 调用模型
-    const response = await chat(props.sessionId, value);
-    console.log(response)
+    const response = await chat(conversationStore.currentSessionId, value);
     // 添加 AI 回复
-    list.value.push(createMessage('ai', response.content as string));
+    chatList.value.push(createMessage('ai', response.content as string));
   } catch (error) {
     console.error('模型调用失败:', error);
-    list.value.push(createMessage('ai', '抱歉，服务暂时不可用，请稍后再试。'));
+    chatList.value.push(createMessage('ai', '抱歉，服务暂时不可用，请稍后再试。'));
   } finally {
     senderLoading.value = false;
   }
 }
+
+function clearList() {
+  console.log('clearList')
+  chatList.value = [];
+}
+
+defineExpose({
+  clearList,
+})
 </script>
 
 <template>
     <div style="height: calc(100% - 90px);">
         <BubbleList
-        :list="list"
+        :list="chatList"
         always-show-scrollbar
         btn-loading
         />

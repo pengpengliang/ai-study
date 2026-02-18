@@ -6,29 +6,22 @@ import { ref } from 'vue';
 // 1. 历史记录
 // 2. langgraph
 // 3. documentChain
+const middleContentRef = ref<typeof MiddleContent>();
 
-const currentSessionId = ref('');
-const leftChatListRef = ref<InstanceType<typeof LeftChatList> | null>(null);
-
-function handleSessionChange(sessionId: string) {
-  currentSessionId.value = sessionId;
-}
-
-function addConversation(data: { sessionId: string; content: string }) {
-  if (leftChatListRef.value) {
-    leftChatListRef.value.handleAddConversation(data);
+function clearList() {
+  if (middleContentRef.value) {
+    middleContentRef.value.clearList();
   }
 }
-
 </script>
 
 <template>
     <div style="display: flex; height: 100%;width: 100%;">
       <div style="height: 100%;width: 280px;">
-        <LeftChatList ref="leftChatListRef" @session-change="handleSessionChange"/>
+        <LeftChatList @clearList="clearList"/>
       </div>
       <div style="height: 100%;width: calc(100% - 280px);">
-        <MiddleContent :session-id="currentSessionId" :add-conversation="addConversation"/>
+        <MiddleContent ref="middleContentRef"/>
       </div>
     </div>
 </template>
