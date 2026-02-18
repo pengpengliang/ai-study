@@ -23,6 +23,8 @@
   "devDependencies": {
     "@types/node": "^25.2.3",
     "@vitejs/plugin-vue": "^6.0.2",
+    "less": "^4.5.1",
+    "less-loader": "^12.3.1",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
