@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import type { ConversationItem } from 'vue-element-plus-x/types/Conversations';
+import { chatService } from '@/services/chatService';
+
+interface ConversationState {
+  conversationList: ConversationItem<{ id: string; label: string }>[];
+  currentSessionId: string;
+  isNewSession: boolean;
+}
 
 // 获取当前日期，格式为 yyyy-mm-dd
 function getCurrentDate() {
@@ -12,57 +19,70 @@ function getCurrentDate() {
 }
 
 export const useConversationStore = defineStore('conversation', () => {
-  const isNewSession = ref(false)
-  // 会话列表
-  const conversationList = ref<ConversationItem<{ id: string; label: string }>[]>([]);
+  const state = ref<ConversationState>({
+    conversationList: [],
+    currentSessionId: '',
+    isNewSession: false
+  });
 
-  // 当前选中的会话ID
-  const currentSessionId = ref('');
+  const currentConversation = computed(() => {
+    return state.value.conversationList.find(
+      item => item.id === state.value.currentSessionId
+    );
+  });
 
   function changeIsNewSession(value: boolean) {
-    isNewSession.value = value
+    state.value.isNewSession = value;
   }
 
-  // 生成会话ID
   function createSessionId() {
-    currentSessionId.value = `${new Date().getTime()}`;
+    state.value.currentSessionId = `${new Date().getTime()}`;
   }
 
-  // 添加新会话
   function addConversation(content: string) {
-    conversationList.value.push({
-      id: currentSessionId.value,
+    state.value.conversationList.push({
+      id: state.value.currentSessionId,
       label: content,
       group: getCurrentDate(),
     });
   }
 
-  // 切换会话
   function switchConversation(sessionId: string) {
-    changeIsNewSession(false)
-    currentSessionId.value = sessionId;
+    changeIsNewSession(false);
+    state.value.currentSessionId = sessionId;
   }
 
-  // 删除会话
   function deleteConversation(sessionId: string) {
-    const index = conversationList.value.findIndex(item => item.id === sessionId);
+    const index = state.value.conversationList.findIndex(item => item.id === sessionId);
     if (index !== -1) {
-      conversationList.value.splice(index, 1);
-      // 如果删除的是当前会话，清空当前会话ID
-      if (currentSessionId.value === sessionId) {
-        currentSessionId.value = conversationList.value.length > 0 ? conversationList.value[0].id : '';
+      state.value.conversationList.splice(index, 1);
+      chatService.deleteSession(sessionId);
+      
+      if (state.value.currentSessionId === sessionId) {
+        state.value.currentSessionId = state.value.conversationList.length > 0 
+          ? state.value.conversationList[0].id 
+          : '';
       }
     }
   }
 
+  function renameConversation(sessionId: string, newLabel: string) {
+    const conversation = state.value.conversationList.find(item => item.id === sessionId);
+    if (conversation) {
+      conversation.label = newLabel;
+    }
+  }
+
   return {
-    conversationList,
-    currentSessionId,
-    isNewSession,
+    conversationList: computed(() => state.value.conversationList),
+    currentSessionId: computed(() => state.value.currentSessionId),
+    isNewSession: computed(() => state.value.isNewSession),
+    currentConversation,
     changeIsNewSession,
     createSessionId,
     addConversation,
     switchConversation,
-    deleteConversation
+    deleteConversation,
+    renameConversation
   };
 });

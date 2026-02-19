@@ -6,6 +6,7 @@ import { ref } from 'vue';
 // 1. 历史记录
 // 2. langgraph
 // 3. documentChain
+// 4. 完整的RAG
 const middleContentRef = ref<typeof MiddleContent>();
 
 function clearList() {
